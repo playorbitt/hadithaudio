@@ -1499,6 +1499,31 @@ const jgz = async (u) => {
   return new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).json();
 };
 const jopt = async (u) => { try { return await j(u); } catch { return null; } };
+/* Word glosses: compact pool + bundle per collection (gloss-compact/). */
+const COMPACT_GLOSS = new Set(["abudawud","bukhari","ibnmajah","malik","muslim","nasai","nawawi40","qudsi40","shahwaliullah40","tirmidhi"]);
+const compactGlossCache = {};
+function ensureCompactGloss(slug){
+  if (!compactGlossCache[slug]) {
+    compactGlossCache[slug] = Promise.all([
+      jgz(`gloss-compact/${slug}-pool.json.gz`),
+      jgz(`gloss-compact/${slug}-bundle.json.gz`),
+    ]).then(([pool, bundle]) => ({
+      values: pool.entries.map(entry => entry.value),
+      reports: new Map(bundle.reports.map(report => [String(report.report), report])),
+    })).catch(error => { delete compactGlossCache[slug]; throw error; });
+  }
+  return compactGlossCache[slug];
+}
+async function getGloss(slug, n){
+  if (!COMPACT_GLOSS.has(slug)) return null;
+  try {
+    const compact = await ensureCompactGloss(slug);
+    const report = compact.reports.get(String(n));
+    if (!report) return null;
+    const glosses = Object.fromEntries(report.tokenRefs.map(([tokenId, poolId]) => [tokenId, compact.values[poolId]]));
+    return { ...report.meta, glosses };
+  } catch { return null; }
+}
 const fmt = s => isNaN(s) ? "0:00" : `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
 
 /* ---------- settings ---------- */
@@ -2959,7 +2984,7 @@ async function openForty(col, n, navToken = currentNavToken){
   const [{ trans, sun }, rec, gloss] = await Promise.all([
     ensureFortySidecars(col.slug),
     j(`recitation/${col.corpus}.${pad}.json`),
-    jopt(`gloss/${col.slug}-${n}.json`),
+    getGloss(col.slug, n),
   ]);
   if (!isCurrentNavigation(navToken)) return false;
   const en = trans.translations.find(t => t.witness === rec.witness);
@@ -3182,7 +3207,7 @@ async function openBookHadith(slug, n, navToken = currentNavToken){
   const reportWords = slug === "ibn-khuzaymah" && h.recitation ? await khuzaymahWords(n) : [];
   const urdu = (slug === "bukhari" || slug === "muslim") && collectionUrduLanguage(slug) === "ur";
   const [gloss, timing, officialTranslation, muslimReference] = await Promise.all([
-    slug === "darimi" || slug === "ibn-khuzaymah" ? null : jopt(`gloss/${slug}-${n}.json`),
+    getGloss(slug, n),
     urdu ? urduTiming(slug,bookMeta.book,n) : slug === "ibn-khuzaymah" && h.recitation
       ? {audio:h.recitation[0],segmentStart:Number(h.recitation[1]),segmentEnd:Number(h.recitation[2]),tokens:khuzaymahDisplayTokens(h.tokens, reportWords)}
       : (slug === "umdat-al-ahkam" || slug === "al-ilmam" || (slug === "bulugh-al-maram" || slug === "al-lulu-wal-marjan" || slug === "al-muntaqa-ibn-al-jarud" || slug === "al-adab-al-mufrad"))
