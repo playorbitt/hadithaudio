@@ -1,27 +1,15 @@
 import { handleApi } from './api.js';
 // Cloudflare Worker: serves the site from R2 and ports the Vercel bits
-// (the /api/arabic-book-audio proxy, /h/:collection/:id redirects).
+// (/api/arabic-book-audio, now from R2, /h/:collection/:id redirects).
 const AUDIO = {
   'aqidah-tahawiyyah': 'ar_Al3qedh_AlT7aweh_AlAnsaree.mp3',
   'alfiyyah-ibn-malik': 'ar_Alfeyyat_Ibn_Malek_Nashmi.mp3',
 };
-const AUDIO_BASE = 'https://github.com/playorbitt/arabic-word-reader/releases/download/Audios/';
 
-async function audio(request, url) {
-  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
+async function audio(request, env, url) {
   const file = AUDIO[url.searchParams.get('book')];
   if (!file) return new Response(null, { status: 404 });
-  const range = request.headers.get('range');
-  if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) return new Response(null, { status: 416 });
-  const upstream = await fetch(AUDIO_BASE + file, { method: request.method, headers: range ? { range } : {} });
-  if (!upstream.ok && upstream.status !== 416) return new Response(null, { status: 502 });
-  const headers = new Headers({ 'Content-Type': 'audio/mpeg' });
-  for (const name of ['content-range', 'content-length', 'accept-ranges']) {
-    const v = upstream.headers.get(name);
-    if (v) headers.set(name, v);
-  }
-  if (upstream.status === 200 || upstream.status === 206) headers.set('Cache-Control', 'public, max-age=3600');
-  return new Response(upstream.body, { status: upstream.status, headers });
+  return serveKey(request, env, 'hadithaudio/arabic-book/' + file, '/api/arabic-book-audio');
 }
 
 // The whole site lives in R2: hadith-audio/hadithaudio/site/ (static files)
@@ -118,7 +106,7 @@ export default {
       res.headers.set('access-control-allow-origin', '*');
       return res;
     }
-    if (url.pathname === '/api/arabic-book-audio') return audio(request, url);
+    if (url.pathname === '/api/arabic-book-audio') return audio(request, env, url);
     const h = url.pathname.match(/^\/h\/([^/]+)\/([^/]+)\/?$/);
     if (h) return Response.redirect(`${url.origin}/?c=${h[1]}&n=${h[2]}`, 308);
     return serve(request, env, url);
