@@ -93,6 +93,7 @@ function respond(request, obj, key, path) {
 // (hadith-audio/hadith-to/{audio,timings}/<collection>/<record>.<ext>).
 const FORTY = { 'nawawi-arbain': 'nawawi40', 'qudsi-arbain': 'qudsi40', 'shahwaliullah-arbain': 'shahwaliullah40' };
 function cdnKey(path) {
+  if (/^\/(bukhari|muslim)-urdu\/[\w.-]+\.(mp3|m4a|json)$/.test(path)) return path.slice(1);
   let m = path.match(/^\/recitation\/([a-z-]+)\.(\d+)\.(mp3|m4a|json)$/);
   if (m && FORTY[m[1]]) return m[3] === 'json'
     ? `hadithaudio/site/recitation/${m[1]}.${m[2]}.json`
