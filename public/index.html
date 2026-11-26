@@ -3083,6 +3083,7 @@ function applyUrduMatan(tokens,spans){
   const keepVisible = new Set();
   const prophetNameParts = new Set(["آپ","رسول","اللہ","نبی","کریم","اکرم","حضرت","محمد","جناب","حضور","پاک","سیدنا","سرکار","آنحضرت","آنحضور","ابوالقاسم","پیغمبر","النبي","مصطفی","مصطفیٰ","احمد","حبیب"]);
   let keptUnspokenSalawat = false;
+  const groups = [];
   for (let i=0;i<tokens.length;i++) {
     const word=(tokens[i].text||"").replace(/[،۔؛,:!?؟"'“”‘’()\\[\\]{}]/g,"");
     if (word !== "صلی" && word !== "صلى" && word !== "صلّی") continue;
@@ -3098,9 +3099,21 @@ function applyUrduMatan(tokens,spans){
     // Keep one untimed reference for context, but retain every reference linked to audio.
     if (!phraseIsSpoken && keptUnspokenSalawat) continue;
     if (!phraseIsSpoken) keptUnspokenSalawat=true;
-    keepVisible.add(i);
-    for (let j=i+1;j<Math.min(tokens.length,i+4);j++) keepVisible.add(j);
-    for (const j of titleIndices) keepVisible.add(j);
+    const group=[...titleIndices,i];
+    for (let j=i+1;j<Math.min(tokens.length,i+4);j++) group.push(j);
+    groups.push({indices:group,spoken:phraseIsSpoken});
+    for (const j of group) keepVisible.add(j);
+  }
+  // Drop a kept untimed blessing when the next visible words already name the
+  // Prophet (e.g. "نبی کریم ﷺ" + "آپ ﷺ نے فرمایا" would show the name twice).
+  const isSpoken=t=>Number.isFinite(t.start) && Number.isFinite(t.end) && t.end>t.start;
+  for (const g of groups) {
+    if (g.spoken) continue;
+    const end=Math.max(...g.indices);
+    let k=end+1;
+    while (k<tokens.length && !isSpoken(tokens[k]) && !keepVisible.has(k)) k++;
+    const next=groups.find(h=>h!==g && h.indices.includes(k));
+    if (next && next.spoken) for (const j of g.indices) keepVisible.delete(j);
   }
   for (let i=0;i<tokens.length;i++) {
     const word=tokens[i],span=spans[i];
