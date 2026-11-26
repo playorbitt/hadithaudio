@@ -3464,7 +3464,7 @@ function route(){
   const q = new URLSearchParams(location.search);
   const c = q.get("c");
   const n = q.get("n");
-  if (!c || !n || !/^[a-z0-9]+$/i.test(c) || !/^\d+[a-z]?$/i.test(n)) return;
+  if (!c || !n || !/^[a-z0-9-]+$/i.test(c) || !/^\d+[a-z]?$/i.test(n)) return;
   history.replaceState(null, "", `/#${c}:${n}`);
 })();
 renderResume();

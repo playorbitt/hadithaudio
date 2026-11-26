@@ -19,6 +19,7 @@ const DAILY = /^\/((bukhari|muslim|abudawud|tirmidhi|nasai|ibnmajah|malik|riyad|
 const TYPES = { m4a: 'audio/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', json: 'application/json; charset=utf-8', html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', css: 'text/css; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', woff2: 'font/woff2', ttf: 'font/ttf', txt: 'text/plain; charset=utf-8', xml: 'application/xml', webmanifest: 'application/manifest+json', gz: 'application/gzip' };
 
 function candidates(path) {
+  if (path === '/favicon.ico') return ['hadithaudio/site/favicon-48.png'];
   const base = path.startsWith('/darimi/') ? 'hadithaudio' : 'hadithaudio/site';
   if (path.endsWith('/')) return [base + path + 'index.html'];
   const last = path.slice(path.lastIndexOf('/') + 1);
