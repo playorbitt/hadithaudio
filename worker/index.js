@@ -1,3 +1,4 @@
+import { handleApi } from './api.js';
 // Cloudflare Worker: serves the site from R2 and ports the Vercel bits
 // (the /api/arabic-book-audio proxy, /h/:collection/:id redirects).
 const AUDIO = {
@@ -108,6 +109,9 @@ function cdnKey(path) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.hostname === 'api.hadith.to' || (url.hostname.endsWith('.workers.dev') && url.pathname.startsWith('/v1/'))) {
+      return handleApi(request, env, url);
+    }
     if (url.hostname === 'cdn.hadith.to') {
       const key = cdnKey(url.pathname);
       const res = key ? await serveKey(request, env, key, url.pathname) : new Response('Not found', { status: 404 });
