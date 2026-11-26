@@ -68,7 +68,7 @@ function respond(request, obj, key, path) {
     : ext === 'html' ? 'public, max-age=0, must-revalidate' : 'public, max-age=3600');
   if (!('body' in obj)) return new Response(null, { status: 304, headers });
   let status = 200;
-  if (obj.range) {
+  if (obj.range && request.headers.has("range")) {
     const { offset = 0, length = obj.size - offset } = obj.range.suffix != null
       ? { offset: obj.size - obj.range.suffix, length: obj.range.suffix } : obj.range;
     headers.set('content-range', `bytes ${offset}-${offset + length - 1}/${obj.size}`);
