@@ -1,0 +1,8 @@
+{
+  "name": "hadithaudio",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "account_id": "8e10c3ab6350f3d98952f490bc32da31",
+  "workers_dev": true,
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "hadith-audio" }]
+}

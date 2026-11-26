@@ -3190,7 +3190,7 @@ async function openBookHadith(slug, n, navToken = currentNavToken){
           audio:h.src.f, segmentStart:h.src.s, segmentEnd:h.src.e,
           tokens:h.tokens.map(t => ({...t, start:t.start + h.src.s, end:t.end + h.src.s}))
         } : null)
-      : slug === "darimi" ? (h.clip ? { audio:`darimi/clips/${h.clip}.mp3`, tokens:h.tokens } : null) : getBookTiming(slug, n),
+      : slug === "darimi" ? (h.clip ? { audio:`darimi/clips/${h.clip}.m4a`, tokens:h.tokens } : null) : getBookTiming(slug, n),
     slug === "ibn-khuzaymah" ? {en:h.en} : (slug === "darimi" || slug === "al-ilmam" || (slug === "bulugh-al-maram" || slug === "al-lulu-wal-marjan" || slug === "al-muntaqa-ibn-al-jarud" || slug === "al-adab-al-mufrad")) ? {} : ensureOfficialTranslations(slug, n),
     slug === "muslim" ? muslimReferenceFor(n) : null,
   ]);
