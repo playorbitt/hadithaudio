@@ -37,7 +37,9 @@ function shape(raw, collection, record, includeTimings) {
     media: raw.media || { available: false, audio: null, timings: null },
     links: { website: `https://hadith.to/#${collection}:${record}`, self: `/${VERSION}/hadith/${collection}/${record}` },
   };
-  if (includeTimings) out.timings = wordTimings || null;
+  // "wordTimings" is what the original API returned (hadith.dev relies on it);
+  // "timings" matches the v1 docs. Keep both.
+  if (includeTimings) { out.wordTimings = wordTimings || null; out.timings = out.wordTimings; }
   return out;
 }
 
