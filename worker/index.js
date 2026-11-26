@@ -27,7 +27,7 @@ async function audio(request, url) {
 // and hadith-audio/hadithaudio/darimi/ (Darimi catalog + .m4a clips).
 const IMMUTABLE = /^\/(recitation|gloss-compact|gloss-lazy)\//;
 const DAILY = /^\/((bukhari|muslim|abudawud|tirmidhi|nasai|ibnmajah|malik|riyad|musnad-ahmad)\/[^/]+\.json$|translation\/|sunnah\/|[^/]+-isnad-word-pool\.json$)/;
-const TYPES = { m4a: 'audio/mp4', mp3: 'audio/mpeg', json: 'application/json; charset=utf-8', html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', css: 'text/css; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', woff2: 'font/woff2', ttf: 'font/ttf', txt: 'text/plain; charset=utf-8', xml: 'application/xml', webmanifest: 'application/manifest+json', gz: 'application/gzip' };
+const TYPES = { m4a: 'audio/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', json: 'application/json; charset=utf-8', html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', css: 'text/css; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', woff2: 'font/woff2', ttf: 'font/ttf', txt: 'text/plain; charset=utf-8', xml: 'application/xml', webmanifest: 'application/manifest+json', gz: 'application/gzip' };
 
 function candidates(path) {
   const base = path.startsWith('/darimi/') ? 'hadithaudio' : 'hadithaudio/site';
@@ -47,7 +47,17 @@ async function serve(request, env, url) {
     obj = await env.MEDIA.get(key, { range: request.headers, onlyIf: request.headers });
     if (obj) break;
   }
-  if (!obj) {
+  return obj ? respond(request, obj, key, path) : notFound(env, url, path);
+}
+
+async function serveKey(request, env, key, path) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
+  const obj = await env.MEDIA.get(key, { range: request.headers, onlyIf: request.headers });
+  return obj ? respond(request, obj, key, path) : new Response('Not found', { status: 404 });
+}
+
+async function notFound(env, url, path) {
+  {
     // "/foo" that is really a folder → redirect to "/foo/"
     if (!path.endsWith('/') && !path.slice(path.lastIndexOf('/') + 1).includes('.')) {
       const dir = await env.MEDIA.head('hadithaudio/site' + path + '/index.html');
@@ -55,6 +65,9 @@ async function serve(request, env, url) {
     }
     return new Response('Not found', { status: 404 });
   }
+}
+
+function respond(request, obj, key, path) {
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
   headers.set('etag', obj.httpEtag);
@@ -76,9 +89,30 @@ async function serve(request, env, url) {
   return new Response(request.method === 'HEAD' ? null : obj.body, { status, headers });
 }
 
+// cdn.hadith.to: map the old CDN paths onto the hadith.to backup in R2
+// (hadith-audio/hadith-to/{audio,timings}/<collection>/<record>.<ext>).
+const FORTY = { 'nawawi-arbain': 'nawawi40', 'qudsi-arbain': 'qudsi40', 'shahwaliullah-arbain': 'shahwaliullah40' };
+function cdnKey(path) {
+  let m = path.match(/^\/recitation\/([a-z-]+)\.(\d+)\.(mp3|m4a|json)$/);
+  if (m && FORTY[m[1]]) return m[3] === 'json'
+    ? `hadithaudio/site/recitation/${m[1]}.${m[2]}.json`
+    : `hadith-to/audio/${FORTY[m[1]]}/${+m[2]}.${m[3]}`;
+  m = path.match(/^\/([a-z-]+)-timings\/[nr]?(\d+)(?:\.json)?$/);
+  if (m) return `hadith-to/timings/${m[1]}/${+m[2]}.json`;
+  m = path.match(/^\/([a-z-]+)\/[nr]?(\d+)\.(mp3|ogg|m4a)$/);
+  if (m) return `hadith-to/audio/${m[1]}/${+m[2]}.${m[3]}`;
+  return null;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.hostname === 'cdn.hadith.to') {
+      const key = cdnKey(url.pathname);
+      const res = key ? await serveKey(request, env, key, url.pathname) : new Response('Not found', { status: 404 });
+      res.headers.set('access-control-allow-origin', '*');
+      return res;
+    }
     if (url.pathname === '/api/arabic-book-audio') return audio(request, url);
     const h = url.pathname.match(/^\/h\/([^/]+)\/([^/]+)\/?$/);
     if (h) return Response.redirect(`${url.origin}/?c=${h[1]}&n=${h[2]}`, 308);
