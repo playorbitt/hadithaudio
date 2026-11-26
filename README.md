@@ -72,3 +72,9 @@ Static site, no build step. `vercel.json` sets the output directory to `public/`
 
 Code: MIT. Hadith text derives from public datasets; see the data repo for
 source provenance. Verify before relying on any text or grade for religious use.
+
+## Hosting (Cloudflare)
+
+- **Site + data:** served by the `hadithaudio` Worker (`worker/`, `wrangler.jsonc`) from R2 bucket `hadith-audio`, prefix `hadithaudio/site/`. Collection JSON, gloss pools, translations and recitation timings live **only in R2**, not in git; use `sh scripts/sync-site.sh pull|push`.
+- **Media:** `cdn.hadith.to` → Worker → R2 `hadith-to/` (audio + timings backup), `bukhari-urdu/`, `muslim-urdu/`; Darimi in `hadithaudio/darimi/` (.m4a); Arabic-book recordings in `hadithaudio/arabic-book/`.
+- **API:** `api.hadith.to/v1` → `worker/api.js`, reading `hadith-to/records/`.
