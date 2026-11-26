@@ -5,7 +5,7 @@ recitation with word-level highlighting, English translation side by side, and
 cross-references that deep-link to sunnah.com.
 
 No client framework — a static HTML reader with a small CSS and JavaScript UI layer
-over static JSON and audio. Deployed through Vercel at **www.hadith.to**.
+over static JSON and audio. Deployed on Cloudflare (Workers + R2) at **hadith.to**.
 
 ## What's here
 
@@ -55,26 +55,13 @@ not a substitute for recitation from a qārī. Layout conventions follow bible.c
 and sunnah.com for familiarity; all code, styling and audio here are original.
 Cross-references are **machine-suggested** and carry sunnah.com's own numbering.
 
-## Deploy (Vercel)
-
-Static site, no build step. `vercel.json` sets the output directory to `public/`.
-
-1. Push this repo to GitHub.
-2. In Vercel: **Add New → Project → import this repo**. Framework preset
-   **Other**, Build Command empty, Output Directory `public` (already in
-   `vercel.json`).
-3. In the project's **Domains**, use `www.hadith.to` as the primary domain and
-   redirect the apex `hadith.to` domain to it.
-   If the domain's DNS lives at the registrar instead, use the DNS values shown
-   by Vercel for `www` and the apex redirect.
-
-## Licence
-
-Code: MIT. Hadith text derives from public datasets; see the data repo for
-source provenance. Verify before relying on any text or grade for religious use.
-
 ## Hosting (Cloudflare)
 
 - **Site + data:** served by the `hadithaudio` Worker (`worker/`, `wrangler.jsonc`) from R2 bucket `hadith-audio`, prefix `hadithaudio/site/`. Collection JSON, gloss pools, translations and recitation timings live **only in R2**, not in git; use `sh scripts/sync-site.sh pull|push`.
 - **Media:** `cdn.hadith.to` → Worker → R2 `hadith-to/` (audio + timings backup), `bukhari-urdu/`, `muslim-urdu/`; Darimi in `hadithaudio/darimi/` (.m4a); Arabic-book recordings in `hadithaudio/arabic-book/`.
 - **API:** `api.hadith.to/v1` → `worker/api.js`, reading `hadith-to/records/`.
+
+## Licence
+
+Code: MIT. Hadith text derives from public datasets; see the data repo for
+source provenance. Verify before relying on any text or grade for religious use.
