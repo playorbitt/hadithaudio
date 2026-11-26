@@ -1,4 +1,5 @@
 import { handleApi } from './api.js';
+import { handleReports } from './reports.js';
 // Cloudflare Worker: serves the site from R2 and ports the Vercel bits
 // (/api/arabic-book-audio, now from R2, /h/:collection/:id redirects).
 const AUDIO = {
@@ -101,6 +102,9 @@ export default {
     if (url.hostname === 'www.hadith.to') {
       url.hostname = 'hadith.to';
       return Response.redirect(url.toString(), 301);
+    }
+    if (url.pathname === '/v1/reports' && (url.hostname === 'api.hadith.to' || url.hostname.endsWith('.workers.dev'))) {
+      return handleReports(request, env);
     }
     if (url.hostname === 'api.hadith.to' || (url.hostname.endsWith('.workers.dev') && url.pathname.startsWith('/v1/'))) {
       return handleApi(request, env, url);
