@@ -97,6 +97,10 @@ function cdnKey(path) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.hostname === 'www.hadith.to') {
+      url.hostname = 'hadith.to';
+      return Response.redirect(url.toString(), 301);
+    }
     if (url.hostname === 'api.hadith.to' || (url.hostname.endsWith('.workers.dev') && url.pathname.startsWith('/v1/'))) {
       return handleApi(request, env, url);
     }
