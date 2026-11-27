@@ -1,5 +1,7 @@
 // api.hadith.to/v1 — read-only Hadith API, rebuilt on the hadith.to backup in R2
 // (hadith-audio/hadith-to/records/<collection>/<record>.json, manifest/collections.json).
+import { DOCS_HTML } from './docs.js';
+
 const VERSION = 'v1';
 const PREFIX = 'hadith-to';
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, HEAD, OPTIONS' };
@@ -12,19 +14,30 @@ function json(body, status = 200, cache = 'public, max-age=3600') {
 }
 const error = (status, code, message) => json({ error: { code, message } }, status, 'no-store');
 
+// Nawawi's Forty now uses a human recitation (see the site's Methodology);
+// the backup copied from the old API still flags it synthetic.
+const HUMAN_OVERRIDE = new Set(['nawawi40']);
+
 let collectionsCache;
 async function collections(env) {
   if (!collectionsCache) {
     const obj = await env.MEDIA.get(`${PREFIX}/manifest/collections.json`);
     if (!obj) throw new Error('collections manifest missing');
-    collectionsCache = await obj.json();
+    collectionsCache = (await obj.json()).map((c) => (HUMAN_OVERRIDE.has(c.id) ? { ...c, synthetic: false } : c));
   }
   return collectionsCache;
 }
 
 async function loadRecord(env, collection, record) {
   const obj = await env.MEDIA.get(`${PREFIX}/records/${collection}/${record}.json`);
-  return obj ? obj.json() : null;
+  if (!obj) return null;
+  const raw = await obj.json();
+  if (HUMAN_OVERRIDE.has(collection)) {
+    delete raw.synthesisDisclosure;
+    raw.synthetic = false;
+    if (raw.wordTimings) raw.wordTimings = { ...raw.wordTimings, synthetic: false };
+  }
+  return raw;
 }
 
 function shape(raw, collection, record, includeTimings) {
@@ -59,6 +72,10 @@ export async function handleApi(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return error(405, 'method_not_allowed', 'Only GET is supported.');
   const path = url.pathname.replace(/\/+$/, '');
   if (path === '' || path === `/${VERSION}`) {
+    // Browsers get the documentation page; API clients keep getting JSON.
+    if ((request.headers.get('accept') || '').includes('text/html')) {
+      return new Response(DOCS_HTML, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600', ...CORS } });
+    }
     return json({ name: 'Hadith API', version: VERSION, docs: 'https://api.hadith.to/v1',
       endpoints: ['/v1/health', '/v1/collections', '/v1/hadith/{collection}/{record}', '/v1/audio/{collection}/{record}'] });
   }
