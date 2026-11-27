@@ -60,7 +60,21 @@ GET https://api.hadith.to/v1/hadith/musnad-ahmad/1?include=timings</pre>
     "timings": "https://cdn.hadith.to/..."
   }
 }</pre>
-<p>Fields may be <code>null</code> when unavailable. Synthetic collections also return a <code>synthesisDisclosure</code>.</p></section>
+<p>Fields may be <code>null</code> when unavailable. Synthetic collections also return a <code>synthesisDisclosure</code>.</p>
+<h3>Urdu audio</h3>
+<p>Sahih al-Bukhari and Sahih Muslim also have an Urdu recitation. It appears as <code>media.urdu</code> on <code>/hadith</code> and as <code>urdu</code> on <code>/audio</code>; it is <code>null</code> when a hadith has no Urdu recording. <code>/collections</code> lists each collection's <code>audioLanguages</code>.</p>
+<p>Each Urdu file covers many hadith, so play from <code>start</code> to <code>end</code> (seconds). With <code>include=timings</code>, <code>tokens</code> carries Urdu words with <code>start</code>/<code>end</code> in the same file's seconds; words the reciter does not read (usually the chain of narrators) have no times.</p>
+<pre>"media": {
+  "available": true,
+  "audio": "https://cdn.hadith.to/bukhari/0002.mp3",
+  "timings": "https://cdn.hadith.to/bukhari-timings/n0002.json",
+  "urdu": {
+    "language": "ur",
+    "audio": "https://cdn.hadith.to/bukhari-urdu/bukhari-urdu-0001-0050.mp3",
+    "start": 46.42,
+    "end": 92.72
+  }
+}</pre></section>
 
 <section id="collections"><h2>Collection IDs</h2>
 <table><tr><th>ID</th><th>Collection</th></tr>

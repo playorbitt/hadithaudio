@@ -1,6 +1,7 @@
 // api.hadith.to/v1 — read-only Hadith API, rebuilt on the hadith.to backup in R2
 // (hadith-audio/hadith-to/records/<collection>/<record>.json, manifest/collections.json).
 import { DOCS_HTML } from './docs.js';
+import { hasUrdu, urduMedia } from './urdu.js';
 
 const VERSION = 'v1';
 const PREFIX = 'hadith-to';
@@ -23,7 +24,11 @@ async function collections(env) {
   if (!collectionsCache) {
     const obj = await env.MEDIA.get(`${PREFIX}/manifest/collections.json`);
     if (!obj) throw new Error('collections manifest missing');
-    collectionsCache = (await obj.json()).map((c) => (HUMAN_OVERRIDE.has(c.id) ? { ...c, synthetic: false } : c));
+    collectionsCache = (await obj.json()).map((c) => ({
+      ...c,
+      ...(HUMAN_OVERRIDE.has(c.id) ? { synthetic: false } : {}),
+      audioLanguages: hasUrdu(c.id) ? ['ar', 'ur'] : ['ar'],
+    }));
   }
   return collectionsCache;
 }
@@ -95,13 +100,22 @@ export async function handleApi(request, env, url) {
       if (p.err) return p.err;
       const raw = await loadRecord(env, p.collection, p.record);
       if (!raw) return error(404, 'record_not_found', 'Record is outside this collection.');
+      const includeTimings = url.searchParams.get('include') === 'timings';
+      // Urdu recitation (Bukhari, Muslim) sits next to the Arabic media; the
+      // existing Arabic fields are unchanged so older clients keep working.
+      const urdu = hasUrdu(p.collection)
+        ? await urduMedia(env, p.collection, p.record, includeTimings).catch(() => null)
+        : undefined;
       if (endpoint === 'audio') {
         const media = raw.media || { available: false, audio: null, timings: null };
-        const out = { collection: p.collection, record: p.record, ...media };
+        const out = { collection: p.collection, record: p.record, language: 'ar', ...media };
         if (p.meta.synthetic) { out.synthetic = true; out.synthesisDisclosure = raw.synthesisDisclosure || null; }
+        if (urdu !== undefined) out.urdu = urdu;
         return json(out);
       }
-      return json(shape(raw, p.collection, p.record, url.searchParams.get('include') === 'timings'));
+      const out = shape(raw, p.collection, p.record, includeTimings);
+      if (urdu !== undefined) out.media = { ...out.media, urdu };
+      return json(out);
     }
     return error(404, 'not_found', 'Unknown endpoint.');
   } catch (e) {
